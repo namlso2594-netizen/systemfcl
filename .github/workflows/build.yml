@@ -14,14 +14,29 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Extract project
+      - name: Extract and build project
         run: |
-          unzip -o System_FCL_Port_1.21.11_SOURCE.zip
-          cd System_FCL_Port_1.21.11
+          set -eux
+          ARCHIVE=$(find . -maxdepth 1 -type f -iname '*.zip' | head -n 1)
+          if [ -z "$ARCHIVE" ]; then
+            echo "ZIP archive not found"
+            ls -la
+            exit 1
+          fi
+          mkdir -p extracted
+          unzip -o "$ARCHIVE" -d extracted
+          GRADLEW=$(find extracted -type f -name gradlew | head -n 1)
+          if [ -z "$GRADLEW" ]; then
+            echo "gradlew not found"
+            find extracted -maxdepth 4 -type f | head -100
+            exit 1
+          fi
+          cd "$(dirname "$GRADLEW")"
           chmod +x gradlew
           ./gradlew --no-daemon build
 
       - uses: actions/upload-artifact@v4
         with:
           name: System-FCL-JAR
-          path: System_FCL_Port_1.21.11/build/libs/*.jar
+          path: extracted/**/build/libs/*.jar
+          if-no-files-found: error 
